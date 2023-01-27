@@ -16,11 +16,16 @@ describe("Pixels On Chain Testing", function () {
         const erc721Wrapper = await ethers.getContractFactory("ERC721Wrapper");
         const deployedERC721Wrapper = await erc721Wrapper.deploy();
 
+        //Deploy Factory
+        const factory = await ethers.getContractFactory("WrapperFactory");
+        const deployedFactory = await factory.deploy();
+
         return { 
             owner,
             addy0,
             addy1,
-            deployedERC721Wrapper
+            deployedERC721Wrapper,
+            deployedFactory
         };
     }
 
@@ -30,10 +35,16 @@ describe("Pixels On Chain Testing", function () {
 
     describe("Testing  ", () => {
         it("Successfully basic stuff", async function () {
+            const { owner, addy0, addy1, deployedERC721Wrapper, deployedFactory } = await loadFixture(deployEnvironment);
 
-            const { owner, addy0, addy1, deployedERC721Wrapper } = await loadFixture(deployEnvironment);
+            provider = owner.provider;
 
-            
+            const code = await provider.getCode(deployedERC721Wrapper.address);
+
+            const newdeployedaddress = await deployedFactory.createClonedContract(8);
+
+
+            console.log(newdeployedaddress);
         });
     });
 });
