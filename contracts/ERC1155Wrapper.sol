@@ -6,8 +6,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-//we want this to be a cloneable contract that gets deployed by create2
 contract ERC1155Wrapper is ERC1155, ReentrancyGuard {
+    using SafeMath for uint256;
 
     constructor() ERC1155("") {
     }
