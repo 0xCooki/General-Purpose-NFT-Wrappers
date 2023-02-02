@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     using SafeMath for uint256;
 
-    ERC721 public baseContract;
+    IERC721Metadata public immutable baseContract;
 
-    constructor(ERC721 _contract) 
+    constructor(IERC721Metadata _contract)
         ERC721(
             string.concat("Wrapped ", _contract.name()),
             string.concat("wr", _contract.symbol())
@@ -20,11 +21,15 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
         baseContract = _contract;
     }
 
-    function Wrap(uint256 _tokenId) external nonReentrant {
+    function tokenURI(uint256 _tokenId) public view override returns (string memory) {
+        return baseContract.tokenURI(_tokenId);
+    }
+
+    function wrap(uint256 _tokenId) external nonReentrant {
         require(
             baseContract.getApproved(_tokenId) == address(this) || 
             baseContract.isApprovedForAll(_msgSender(), address(this)),
-            "The Wrapper contract has not been approved to transfer the NFT"
+            "ERC721Wrapper: Wrapper has not been approved to transfer the NFT"
         );
 
         baseContract.safeTransferFrom(
@@ -32,22 +37,14 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
                     address(this),
                     _tokenId
                 );
-
-        //emit event
     }
 
-    function UnWrap(uint256 _tokenId) external nonReentrant {
+    function unWrap(uint256 _tokenId) external nonReentrant {
 
         //Burn   
     }
 
-    //Wrap function
-
-    //the tokenURI function to get the art
-
-    //anything else?
-
-
+    //Put in something to send it to the factory
     receive() external payable {}
 
     function onERC721Received(
@@ -56,20 +53,40 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
         uint256 tokenId,
         bytes calldata
     ) external override returns (bytes4) {
-        address collection = msg.sender;
+        IERC721Metadata receivedCollection = IERC721Metadata(msg.sender);
 
-        //Force that the recieved collection is the base contract
-        //Or the wrapped NFT to auto unwrap
-
-        /*
         require(
-            IERC721(collection).ownerOf(tokenId) == address(this),
-            "TrashBin: transfer to TrashBin failed."
+            receivedCollection.ownerOf(tokenId) == address(this),
+            "ERC721Wrapper: transfer to Wrapper failed."
         );
 
-        _sellERC721(collection, tokenId);
-        */
+        require(
+            receivedCollection == baseContract ||
+            receivedCollection == IERC721Metadata(address(this)),
+            "ERC721Wrapper: may only transfer wrapped or base NFT."
+        );
+
+        if (receivedCollection == baseContract) {
+            _wrap(from, tokenId);
+        } else {
+            
+            //unwrap
+        }
 
         return this.onERC721Received.selector;
+    }
+
+    //Might be doubling up on reentrancy guards here
+    function _wrap(address _reciever, uint256 _tokenId) internal nonReentrant {
+
+        //need to accomodate wrap, then unwrap, then re-wrap
+
+        _safeMint(_reciever, _tokenId);
+
+        //emit event
+    }
+
+    function _unwrap() internal nonReentrant {
+        //does the contract just hold the husks?
     }
 }

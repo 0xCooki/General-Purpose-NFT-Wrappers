@@ -45,11 +45,11 @@ describe("Pixels On Chain Testing", function () {
         };
     }
 
-    ////////////////////////////
-    //Pixels On Chain Registry//
-    ////////////////////////////
+    ///////////////////
+    //Wrapper Factory//
+    ///////////////////
 
-    describe("Testing  ", () => {
+    describe("Testing the Wrapper Factory", () => {
         it("Successfully create an ERC721 wrapper from the factory", async function () {
             const { owner, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
 
@@ -66,7 +66,7 @@ describe("Pixels On Chain Testing", function () {
             console.log("Name: ", name);
             console.log("Symbol: ", symbol);
         });
-        it("Successfully create an ERC721 wrapper of an ERC721 Wrapper from the factory", async function () {
+        it("Successfully create an ERC721 wrapper of an already establed ERC721 Wrapper from the factory", async function () {
             const { owner, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
 
             //Wrap One
@@ -84,6 +84,18 @@ describe("Pixels On Chain Testing", function () {
 
             console.log("Name: ", name);
             console.log("Symbol: ", symbol);
+        });
+    });
+
+    //////////////////
+    //ERC721 Wrapper//
+    //////////////////
+
+    describe("Testing the ERC721 Wrapper", () => {
+        it("Successfully Wrap an ERC721", async function () {
+            const { owner, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
+
+            
         });
     });
 });

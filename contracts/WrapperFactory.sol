@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {ERC721Wrapper} from "./ERC721Wrapper.sol";
@@ -45,7 +45,7 @@ contract WrapperFactory is Ownable, ReentrancyGuard {
     //Charging a fee actually helps to reduce spam
     //it could also scale with the number of duplicates or iterations that exist
     //Make it exponential with the paradigm shit
-    function CreateERC721Wrapper(ERC721 _contract) external payable nonReentrant {
+    function CreateERC721Wrapper(IERC721Metadata _contract) external payable nonReentrant {
         address newContract = address(new ERC721Wrapper{salt: bytes32(nonce)}(_contract));
 
         nonce++;
@@ -57,7 +57,7 @@ contract WrapperFactory is Ownable, ReentrancyGuard {
 
     //if the contracts have constructor variables put them in the abi.encode()
 
-    function getERC721WrapperBytecode(ERC721 _contract) internal pure returns (bytes memory) {
+    function getERC721WrapperBytecode(IERC721Metadata _contract) internal pure returns (bytes memory) {
         bytes memory bytecode = type(ERC721Wrapper).creationCode;
 
         return abi.encodePacked(bytecode, abi.encode(_contract));
@@ -71,7 +71,7 @@ contract WrapperFactory is Ownable, ReentrancyGuard {
     }
     */
 
-    function getERC721WrapperAddress(ERC721 _contract, uint _salt) external view returns (address) {
+    function getERC721WrapperAddress(IERC721Metadata _contract, uint _salt) external view returns (address) {
         bytes32 hash = keccak256(
             abi.encodePacked(bytes1(0xff), address(this), _salt, keccak256(getERC721WrapperBytecode(_contract)))
         );
