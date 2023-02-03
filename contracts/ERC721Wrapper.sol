@@ -8,28 +8,33 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
+import "hardhat/console.sol";
+
 contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     using SafeMath for uint256;
 
     IERC721Metadata public immutable baseContract;
+    
+    address public immutable wrapperFactory;
 
-    constructor(IERC721Metadata _contract)
+    constructor(IERC721Metadata _contract, address _factory)
         ERC721(
             string.concat("Wrapped ", _contract.name()),
             string.concat("wr", _contract.symbol())
         ) {
         baseContract = _contract;
+        wrapperFactory = _factory;
     }
 
     function tokenURI(uint256 _tokenId) public view override returns (string memory) {
         return baseContract.tokenURI(_tokenId);
     }
 
-    function wrap(uint256 _tokenId) external nonReentrant {
+    function wrap(uint256 _tokenId) external {
         require(
             baseContract.getApproved(_tokenId) == address(this) || 
             baseContract.isApprovedForAll(_msgSender(), address(this)),
-            "ERC721Wrapper: Wrapper has not been approved to transfer the NFT"
+            "ERC721Wrapper: Wrapper has not been approved to transfer the NFT."
         );
 
         baseContract.safeTransferFrom(
@@ -39,13 +44,23 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
                 );
     }
 
-    function unWrap(uint256 _tokenId) external nonReentrant {
+    //Might have to override the exists function? seems strange to say the NFT exists if it's been unwrapped
+    //But is just sitting in the Wrapper contract
 
-        //Burn   
+    function unWrap(uint256 _tokenId) external {
+        require(_exists(_tokenId), "ERC721Wrapper: The NFT has not been wrapped yet.");
+
+        safeTransferFrom(_msgSender(), address(this), _tokenId);
     }
 
-    //Put in something to send it to the factory
-    receive() external payable {}
+    receive() external payable {
+        uint256 balance = address(this).balance;
+
+        if (balance > 0) {
+            (bool success, ) = (wrapperFactory).call{value: balance}("");
+            require(success, "ERC721Wrapper: Transfer to factory failed.");
+        }
+    }
 
     function onERC721Received(
         address,
@@ -69,24 +84,25 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
         if (receivedCollection == baseContract) {
             _wrap(from, tokenId);
         } else {
-            
-            //unwrap
+            _unwrap(from, tokenId);
         }
 
         return this.onERC721Received.selector;
     }
 
-    //Might be doubling up on reentrancy guards here
     function _wrap(address _reciever, uint256 _tokenId) internal nonReentrant {
-
-        //need to accomodate wrap, then unwrap, then re-wrap
-
-        _safeMint(_reciever, _tokenId);
+        if (!_exists(_tokenId)) {
+            _safeMint(_reciever, _tokenId);
+        } else {
+            safeTransferFrom(address(this), _reciever, _tokenId);
+        }
 
         //emit event
     }
 
-    function _unwrap() internal nonReentrant {
-        //does the contract just hold the husks?
+    function _unwrap(address _reciever, uint256 _tokenId) internal nonReentrant {
+        baseContract.safeTransferFrom(address(this), _reciever, _tokenId);
+        
+        //emit event
     }
 }

@@ -46,7 +46,7 @@ contract WrapperFactory is Ownable, ReentrancyGuard {
     //it could also scale with the number of duplicates or iterations that exist
     //Make it exponential with the paradigm shit
     function CreateERC721Wrapper(IERC721Metadata _contract) external payable nonReentrant {
-        address newContract = address(new ERC721Wrapper{salt: bytes32(nonce)}(_contract));
+        address newContract = address(new ERC721Wrapper{salt: bytes32(nonce)}(_contract, address(this)));
 
         nonce++;
     }
@@ -57,10 +57,10 @@ contract WrapperFactory is Ownable, ReentrancyGuard {
 
     //if the contracts have constructor variables put them in the abi.encode()
 
-    function getERC721WrapperBytecode(IERC721Metadata _contract) internal pure returns (bytes memory) {
+    function getERC721WrapperBytecode(IERC721Metadata _contract) internal view returns (bytes memory) {
         bytes memory bytecode = type(ERC721Wrapper).creationCode;
 
-        return abi.encodePacked(bytecode, abi.encode(_contract));
+        return abi.encodePacked(bytecode, abi.encode(_contract, address(this)));
     }
 
     /*

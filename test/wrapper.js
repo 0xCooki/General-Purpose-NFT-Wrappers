@@ -1,7 +1,6 @@
 const { expect } = require("chai");
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 const { ethers } = require("hardhat");
-const { Contract } = require("ethers");
 
 describe("Pixels On Chain Testing", function () {
 
@@ -21,13 +20,11 @@ describe("Pixels On Chain Testing", function () {
         const simpleERC1155 = await ethers.getContractFactory("SimpleERC1155");
         const deployedSimpleERC1155 = await simpleERC1155.deploy();
 
-        //Deploy ERC721 Wrapper
+        //ERC721 Wrapper Contract
         const erc721Wrapper = await ethers.getContractFactory("ERC721Wrapper");
-        //const deployedERC721Wrapper = await erc721Wrapper.deploy(deployedSimpleERC721.address);
 
-        //Deploy ERC1155 Wrapper
+        //ERC1155 Wrapper Contract
         const erc1155Wrapper = await ethers.getContractFactory("ERC721Wrapper");
-        //const deployedERC1155Wrapper = await erc1155Wrapper.deploy(deployedSimpleERC1155.address);
 
         //Deploy Factory
         const factory = await ethers.getContractFactory("WrapperFactory");
@@ -50,7 +47,7 @@ describe("Pixels On Chain Testing", function () {
     ///////////////////
 
     describe("Testing the Wrapper Factory", () => {
-        it("Successfully create an ERC721 wrapper from the factory", async function () {
+        it("Successfully create an ERC721 Wrapper from the factory", async function () {
             const { owner, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
 
             await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address);
@@ -60,13 +57,12 @@ describe("Pixels On Chain Testing", function () {
             const newWrapperContract = erc721Wrapper.attach(newdeployedaddress);
 
             const name = await newWrapperContract.name();
-
             const symbol = await newWrapperContract.symbol();
 
-            console.log("Name: ", name);
-            console.log("Symbol: ", symbol);
+            expect(name).to.equal("Wrapped Simple ERC721");
+            expect(symbol).to.equal("wrSMPL");
         });
-        it("Successfully create an ERC721 wrapper of an already establed ERC721 Wrapper from the factory", async function () {
+        it("Successfully create an ERC721 Wrapper of an already establed ERC721 Wrapper from the factory", async function () {
             const { owner, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
 
             //Wrap One
@@ -82,8 +78,8 @@ describe("Pixels On Chain Testing", function () {
             const name = await newWrapperContract0.name();
             const symbol = await newWrapperContract0.symbol();
 
-            console.log("Name: ", name);
-            console.log("Symbol: ", symbol);
+            expect(name).to.equal("Wrapped Wrapped Simple ERC721");
+            expect(symbol).to.equal("wrwrSMPL");
         });
     });
 
@@ -92,10 +88,41 @@ describe("Pixels On Chain Testing", function () {
     //////////////////
 
     describe("Testing the ERC721 Wrapper", () => {
-        it("Successfully Wrap an ERC721", async function () {
+        it("UnSuccessfully Wrap an ERC721 because approval has not been granted", async function () {
             const { owner, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
 
+            //Create Wrapper
+            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address);
+            const newdeployedaddress = await deployedFactory.getERC721WrapperAddress(deployedSimpleERC721.address, 0);
+            const newWrapperContract = await erc721Wrapper.attach(newdeployedaddress);
+
+            //Mint a base NFT
+            await deployedSimpleERC721.mintOne();
+
+            await expect(newWrapperContract.wrap(0)).to.rejectedWith("ERC721Wrapper: Wrapper has not been approved to transfer the NFT.");
+        });
+        it("Successfully Wrap an ERC721", async function () {
+            const { owner, addy0, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
+
+            //Create Wrapper
+            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address);
+            const newdeployedaddress = await deployedFactory.getERC721WrapperAddress(deployedSimpleERC721.address, 0);
+            const newWrapperContract = await erc721Wrapper.attach(newdeployedaddress);
+
+            //Mint a base NFT
+            await deployedSimpleERC721.mintOne();
+
+            //Grant Approval
+            await deployedSimpleERC721.setApprovalForAll(newWrapperContract.address, true);
             
+            //Wrap
+            await newWrapperContract.wrap(0);
+
+            //Owner of SMPL 0 should be the wrapper
+            expect(await deployedSimpleERC721.ownerOf(0)).to.equal(newWrapperContract.address);
+
+            //Owner of wrSMPL 0 should be the "owner"
+            expect(await newWrapperContract.ownerOf(0)).to.equal(owner.address);
         });
     });
 });
