@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract SimpleERC721 is ERC721, ReentrancyGuard {
     using SafeMath for uint256;
@@ -27,5 +28,9 @@ contract SimpleERC721 is ERC721, ReentrancyGuard {
 
             nonce++;
         }
+    }
+
+    function tokenURI(uint256 _tokenId) public pure override returns (string memory) {
+        return string.concat(Strings.toString(_tokenId),"# Art!");
     }
 }

@@ -101,7 +101,7 @@ describe("Pixels On Chain Testing", function () {
 
             await expect(newWrapperContract.wrap(0)).to.rejectedWith("ERC721Wrapper: Wrapper has not been approved to transfer the NFT.");
         });
-        it("Successfully Wrap an ERC721", async function () {
+        it("Successfully Wrap an ERC721 using the wrap function", async function () {
             const { owner, addy0, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
 
             //Create Wrapper
@@ -123,6 +123,40 @@ describe("Pixels On Chain Testing", function () {
 
             //Owner of wrSMPL 0 should be the "owner"
             expect(await newWrapperContract.ownerOf(0)).to.equal(owner.address);
+
+            //Wrapper displays the underlying art correctly
+            expect(await newWrapperContract.tokenURI(0)).to.equal("0# Art!");
         });
+        it("Successfully Wrap an ERC721 using the safeTransfer functionality", async function () {
+            const { owner, addy0, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
+
+            //Create Wrapper
+            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address);
+            const newdeployedaddress = await deployedFactory.getERC721WrapperAddress(deployedSimpleERC721.address, 0);
+            const newWrapperContract = await erc721Wrapper.attach(newdeployedaddress);
+
+            //Mint a base NFT
+            await deployedSimpleERC721.connect(addy0).mintOne();
+
+            //Safe Transfer
+            await deployedSimpleERC721.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, newWrapperContract.address, 0);
+
+            //Owner of SMPL 0 should be the wrapper
+            expect(await deployedSimpleERC721.ownerOf(0)).to.equal(newWrapperContract.address);
+
+            //Owner of wrSMPL 0 should be the "owner"
+            expect(await newWrapperContract.ownerOf(0)).to.equal(addy0.address);
+
+            //Wrapper displays the underlying art correctly
+            expect(await newWrapperContract.tokenURI(0)).to.equal("0# Art!");
+        });
+
+        //to test
+        //immutable variables
+        //sent eth
+        //unwrap, both ways
+        //sending a third nft contract?
+        //exists override
+
     });
 });

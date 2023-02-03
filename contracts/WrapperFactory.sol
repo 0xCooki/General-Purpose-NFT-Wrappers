@@ -88,4 +88,6 @@ contract WrapperFactory is Ownable, ReentrancyGuard {
         return address(uint160(uint(hash)));
     }
     */
+
+   receive() external payable {}
 }
