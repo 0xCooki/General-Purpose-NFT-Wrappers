@@ -8,16 +8,30 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
+import "hardhat/console.sol";
+
 contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     using SafeMath for uint256;
+
+    //////////////
+    //Immutables//
+    //////////////
 
     IERC721Metadata public immutable baseContract;
     
     address public immutable wrapperFactory;
 
+    //////////
+    //Events//
+    //////////
+
     event Wrapped(uint256 indexed _tokenId, address indexed _wrapper);
 
     event UnWrapped(uint256 indexed _tokenId, address indexed _unwrapper);
+
+    ///////////////
+    //Constructor//
+    ///////////////
 
     constructor(IERC721Metadata _contract, address _factory)
         ERC721(
@@ -27,6 +41,10 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
         baseContract = _contract;
         wrapperFactory = _factory;
     }
+
+    /////////////////////
+    //Primary Functions//
+    /////////////////////
 
     function wrap(uint256 _tokenId) external {
         require(
@@ -38,11 +56,45 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
         baseContract.safeTransferFrom(_msgSender(), address(this), _tokenId);
     }
 
-    function unWrap(uint256 _tokenId) external {
-        require(_exists(_tokenId), "ERC721Wrapper: The NFT has not been wrapped yet.");
-
+    function unwrap(uint256 _tokenId) external {
+        require(_active(_tokenId), "ERC721Wrapper: The NFT has not been wrapped yet.");
+        
         safeTransferFrom(_msgSender(), address(this), _tokenId);
     }
+
+    ///////////////////////
+    //Secondary Functions//
+    ///////////////////////
+
+    function _wrap(address _reciever, uint256 _tokenId) internal nonReentrant {
+        require(!_active(_tokenId), "ERC721Wrapper: The NFT has already been wrapped.");
+
+        if (_ownerOf(_tokenId) == address(0)) {
+            _safeMint(_reciever, _tokenId);
+        } else {
+            this.safeTransferFrom(address(this), _reciever, _tokenId);
+        }
+
+        emit Wrapped(_tokenId, _reciever);
+    }
+
+    function _unwrap(address _reciever, uint256 _tokenId) internal nonReentrant {
+        baseContract.safeTransferFrom(address(this), _reciever, _tokenId);
+        
+        emit UnWrapped(_tokenId, _reciever);
+    }
+
+    function _active(uint256 tokenId) internal view virtual returns (bool) {
+        if ((_ownerOf(tokenId) == address(0)) || (_ownerOf(tokenId) == address(this))) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    /////////////////////
+    //Recieve Functions//
+    /////////////////////
 
     receive() external payable {
         (bool success, ) = (wrapperFactory).call{value: address(this).balance }("");
@@ -77,33 +129,11 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
         return this.onERC721Received.selector;
     }
 
-    function _wrap(address _reciever, uint256 _tokenId) internal nonReentrant {
-        require(!_exists(_tokenId), "ERC721Wrapper: The NFT has already been wrapped.");
-
-        if (_ownerOf(_tokenId) == address(0)) {
-            _safeMint(_reciever, _tokenId);
-        } else {
-            safeTransferFrom(address(this), _reciever, _tokenId);
-        }
-
-        emit Wrapped(_tokenId, _reciever);
-    }
-
-    function _unwrap(address _reciever, uint256 _tokenId) internal nonReentrant {
-        baseContract.safeTransferFrom(address(this), _reciever, _tokenId);
-        
-        emit UnWrapped(_tokenId, _reciever);
-    }
+    ////////////////////
+    //ERC721 Overrides//
+    ////////////////////
 
     function tokenURI(uint256 _tokenId) public view override returns (string memory) {
         return baseContract.tokenURI(_tokenId);
-    }
-
-    function _exists(uint256 tokenId) internal view virtual override returns (bool) {
-        if ((_ownerOf(tokenId) == address(0)) || (_ownerOf(tokenId) != address(this))) {
-            return false;
-        } else {
-            return true;
-        }
     }
 }
