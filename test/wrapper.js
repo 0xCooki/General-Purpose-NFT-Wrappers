@@ -303,5 +303,7 @@ describe("Pixels On Chain Testing", function () {
             //Owner of wrSMPL 0 should be wrapper
             expect(await newWrapperContract.ownerOf(0)).to.equal(addy0.address);
         });
+
+        //events
     });
 });
