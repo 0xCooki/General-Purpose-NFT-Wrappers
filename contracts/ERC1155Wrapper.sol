@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -56,8 +57,8 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
     //Maybe make the wrapper name the NFT?
     constructor(IERC1155MetadataURI _contract, address _factory) 
         ERC721(
-            string.concat("Wrapped ", ""),
-            string.concat("wr", "")
+            string.concat("Wrapped ERC1155:", Strings.toString(nonce)),
+            string.concat("wrERC1155:", Strings.toString(nonce))
         ) {
         baseContract = _contract;
         wrapperFactory = _factory;
@@ -220,5 +221,10 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
 
     function tokenURI(uint256 _erc721Id) public view override returns (string memory) {
         return baseContract.uri(ERC721IdToERC1155Id[_erc721Id]);
+    }
+
+    function setNameAndSymbol(string memory _newName, string memory _newSymbol) external returns (bool) {
+
+        return true;
     }
 }

@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {ERC1155} from "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 contract SimpleERC1155 is ERC1155, ReentrancyGuard {
     using SafeMath for uint256;
@@ -25,5 +26,9 @@ contract SimpleERC1155 is ERC1155, ReentrancyGuard {
         amounts[0] = _amount;
 
         _mintBatch(msg.sender, ids, amounts, "0x");
+    }
+
+    function uri(uint256 _tokenId) public pure override returns (string memory) {
+        return string.concat(Strings.toString(_tokenId),"# Arte!");
     }
 }
