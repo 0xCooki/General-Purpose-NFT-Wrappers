@@ -13,13 +13,6 @@ import {IERC1155MetadataURI} from "@openzeppelin/contracts/token/ERC1155/extensi
 
 import "hardhat/console.sol";
 
-//Differences to ERC721 wrapper:
-// - no ability to apend "Wrapper" or "wr" to tokens 'cos they're in the the URI function and I can't do
-//async calls in solidity
-// - also no need to overide uri function if it's defined in the constructor
-
-//Might make more sense to be an ERC721 even if it's wrapping 1155s - just 'I'm going to be treating them 
-//as NFTs, not fungible tokens. 
 contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Receiver {
     using SafeMath for uint256;
 
@@ -44,21 +37,18 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
     //////////
 
     //these ids are erc1155 ids
-
     event Wrapped(uint256 indexed _tokenId, address indexed _wrapper);
 
-    event UnWrapped(uint256 indexed _tokenId, address indexed _unwrapper);
+    event Unwrapped(uint256 indexed _tokenId, address indexed _unwrapper);
 
     ///////////////
     //Constructor//
     ///////////////
 
-    //Don't know how to deal with being unable to edit the name of the tokens 'cos they're in the URI
-    //Maybe make the wrapper name the NFT?
     constructor(IERC1155MetadataURI _contract, address _factory) 
         ERC721(
-            string.concat("Wrapped ERC1155:", Strings.toString(nonce)),
-            string.concat("wrERC1155:", Strings.toString(nonce))
+            string.concat("Wrapped ERC1155: ", Strings.toHexString(address(_contract))),
+            string.concat("wrERC1155: ", Strings.toHexString(address(_contract)))
         ) {
         baseContract = _contract;
         wrapperFactory = _factory;
@@ -110,7 +100,7 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
 
         spareWrapperIdsForERC1155Id[ERC721IdToERC1155Id[_erc721Id]].push(_erc721Id);
         
-        emit UnWrapped(ERC721IdToERC1155Id[_erc721Id], _reciever);
+        emit Unwrapped(ERC721IdToERC1155Id[_erc721Id], _reciever);
     }
 
     function _haveSpareWrapper(uint256 _erc1155Id) internal view virtual returns (bool) {
@@ -172,7 +162,7 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
 
         require(
             receivedCollection.balanceOf(address(this), id) >= value,
-            "ERC1155Wrapper: transfer to TrashBin failed."
+            "ERC1155Wrapper: transfer to Wrapper failed."
         );
 
         require(
@@ -204,7 +194,7 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
         for (uint256 i = 0; i < ids.length; i++) {
             require(
                 receivedCollection.balanceOf(address(this), ids[i]) >= values[i],
-                "ERC1155Wrapper: transfer to TrashBin failed."
+                "ERC1155Wrapper: transfer to Wrapper failed."
             );
 
             for (uint256 j = 0; j < values[i]; j++) {
@@ -221,10 +211,5 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
 
     function tokenURI(uint256 _erc721Id) public view override returns (string memory) {
         return baseContract.uri(ERC721IdToERC1155Id[_erc721Id]);
-    }
-
-    function setNameAndSymbol(string memory _newName, string memory _newSymbol) external returns (bool) {
-
-        return true;
     }
 }

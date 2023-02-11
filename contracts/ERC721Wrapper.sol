@@ -21,13 +21,15 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     
     address public immutable wrapperFactory;
 
+    uint256 public nonce;
+
     //////////
     //Events//
     //////////
 
     event Wrapped(uint256 indexed _tokenId, address indexed _wrapper);
 
-    event UnWrapped(uint256 indexed _tokenId, address indexed _unwrapper);
+    event Unwrapped(uint256 indexed _tokenId, address indexed _unwrapper);
 
     ///////////////
     //Constructor//
@@ -71,6 +73,7 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
 
         if (_ownerOf(_tokenId) == address(0)) {
             _safeMint(_reciever, _tokenId);
+            nonce++;
         } else {
             this.safeTransferFrom(address(this), _reciever, _tokenId);
         }
@@ -81,7 +84,7 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     function _unwrap(address _reciever, uint256 _tokenId) internal nonReentrant {
         baseContract.safeTransferFrom(address(this), _reciever, _tokenId);
         
-        emit UnWrapped(_tokenId, _reciever);
+        emit Unwrapped(_tokenId, _reciever);
     }
 
     function _active(uint256 tokenId) internal view virtual returns (bool) {
