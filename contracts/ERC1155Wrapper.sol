@@ -11,8 +11,6 @@ import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Re
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IERC1155MetadataURI} from "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
 
-import "hardhat/console.sol";
-
 contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Receiver {
     using SafeMath for uint256;
 

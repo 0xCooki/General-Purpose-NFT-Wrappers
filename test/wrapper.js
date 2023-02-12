@@ -28,7 +28,7 @@ describe("Pixels On Chain Testing", function () {
 
         //Deploy Factory
         const factory = await ethers.getContractFactory("WrapperFactory");
-        const deployedFactory = await factory.deploy();
+        const deployedFactory = await factory.deploy(owner.address);
 
         return { 
             owner,
@@ -72,7 +72,7 @@ describe("Pixels On Chain Testing", function () {
 
             //Wrap Two
             await deployedFactory.CreateERC721Wrapper(newWrapperContract.address, {value: ethers.utils.parseEther("0.01")});
-            const newdeployedaddress0 = await deployedFactory.getERC721WrapperAddress(newWrapperContract.address, 1);
+            const newdeployedaddress0 = await deployedFactory.getERC721WrapperAddress(newWrapperContract.address, 0);
             const newWrapperContract0 = erc721Wrapper.attach(newdeployedaddress0);
 
             const name = await newWrapperContract0.name();
@@ -106,7 +106,7 @@ describe("Pixels On Chain Testing", function () {
 
             //Wrap Two
             await deployedFactory.CreateERC721Wrapper(newWrapperContract.address, {value: ethers.utils.parseEther("0.01")});
-            const newdeployedaddress0 = await deployedFactory.getERC721WrapperAddress(newWrapperContract.address, 1);
+            const newdeployedaddress0 = await deployedFactory.getERC721WrapperAddress(newWrapperContract.address, 0);
             const newWrapperContract0 = erc721Wrapper.attach(newdeployedaddress0);
 
             const name = await newWrapperContract0.name();
@@ -182,6 +182,21 @@ describe("Pixels On Chain Testing", function () {
             //Withdraw ETH
             await expect(deployedFactory.withdraw()).to.rejectedWith("Wrapper Factory: Nothing to withdraw");
         });
+        it("Price scales successfully with successive wrapper creators", async function () {
+            const { owner, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
+
+            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.01")});
+            
+            await expect(deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.01")})).to.rejectedWith("Wrapper Factory: Insufficient fee paid");
+
+            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.02")});
+
+            await expect(deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.02")})).to.rejectedWith("Wrapper Factory: Insufficient fee paid");
+        });
+        
+
+        //wrapper getter functions with incorrect version
+        //events
     });
 
     //////////////////
@@ -423,7 +438,6 @@ describe("Pixels On Chain Testing", function () {
         });
 
         //elaborate tests - wrap and unwrap and moving it all about
-        //Pricing
     });
 
     ///////////////////
@@ -671,6 +685,5 @@ describe("Pixels On Chain Testing", function () {
         });
         
         //elaborate test
-        //Pricing
     });
 });

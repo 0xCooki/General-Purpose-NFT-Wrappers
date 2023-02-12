@@ -6,110 +6,73 @@ import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IERC1155MetadataURI} from "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
-
-//import {Fibonacci} from "./FibonacciLibrary.sol";
-
 import {ERC721Wrapper} from "./ERC721Wrapper.sol";
 import {ERC1155Wrapper} from "./ERC1155Wrapper.sol";
-
-import "hardhat/console.sol";
-
-//It's a sort of registry
-//so it needs to hold the nft contract addresses wrapped, the new addresses and or the associated salt to derive it
 
 contract WrapperFactory is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
-    uint256 public nonce;
-
     //baseNFT => set of wrapper addresses
     mapping(address => address[]) public wrapperContracts;
 
-    constructor() {
+    //////////
+    //Events//
+    //////////
+
+    event ERC721WrapperCreated(address indexed _baseNFT, address indexed _wrapperNFT, address indexed _creator);
+
+    event ERC1155WrapperCreated(address indexed _baseNFT, address indexed _wrapperNFT, address indexed _creator);
+
+    ///////////////
+    //Constructor//
+    ///////////////
+
+    constructor(address _owner) {
+        _transferOwnership(_owner);
     }
 
     /////////////////////
     //Primary Functions//
     /////////////////////
     
-    //Charging a fee actually helps to reduce spam
-    //it could also scale with the number of duplicates or iterations that exist
     function CreateERC721Wrapper(IERC721Metadata _contract) external payable nonReentrant {
-        uint256 price = _getWrapPrice(address(_contract));
-        require(msg.value >= price, "Wrapper Factory: Insufficient fee paid"); 
+        require(msg.value >= _getWrapPrice(address(_contract)), "Wrapper Factory: Insufficient fee paid"); 
 
-        address newContract = address(new ERC721Wrapper{salt: bytes32(nonce)}(_contract, address(this)));
+        address newContract = address(new ERC721Wrapper(_contract, address(this)));
 
         wrapperContracts[address(_contract)].push(newContract);
 
-        nonce++;
+        emit ERC721WrapperCreated(address(_contract), newContract, msg.sender);
     }
 
     function CreateERC1155Wrapper(IERC1155MetadataURI _contract) external payable nonReentrant {
-        uint256 price = _getWrapPrice(address(_contract));
-        require(msg.value >= price, "Wrapper Factory: Insufficient fee paid");
+        require(msg.value >= _getWrapPrice(address(_contract)), "Wrapper Factory: Insufficient fee paid");
 
-        address newContract = address(new ERC1155Wrapper{salt: bytes32(nonce)}(_contract, address(this)));
-
+        address newContract = address(new ERC1155Wrapper(_contract, address(this)));
+        
         wrapperContracts[address(_contract)].push(newContract);
 
-        nonce++;
+        emit ERC1155WrapperCreated(address(_contract), newContract, msg.sender);
     }
 
+    function getERC721WrapperAddress(IERC721Metadata _contract, uint256 _version) external view returns (address) {
+        require(_version < wrapperContracts[address(_contract)].length, "Wrapper Factory: Wrapper version doesn't exist");
 
-    //I can probs remove the salt variable and find it
-    function getERC721WrapperAddress(IERC721Metadata _contract, uint _salt) external view returns (address) {
-        bytes32 hash = keccak256(
-            abi.encodePacked(bytes1(0xff), address(this), _salt, keccak256(_getERC721WrapperBytecode(_contract)))
-        );
-
-        return address(uint160(uint(hash)));
+        return wrapperContracts[address(_contract)][_version];
     }
 
-    function getERC1155WrapperAddress(IERC1155MetadataURI _contract, uint _salt) external view returns (address) {
-        bytes32 hash = keccak256(
-            abi.encodePacked(bytes1(0xff), address(this), _salt, keccak256(_getERC1155WrapperBytecode(_contract)))
-        );
+    function getERC1155WrapperAddress(IERC1155MetadataURI _contract, uint256 _version) external view returns (address) {
+        require(_version < wrapperContracts[address(_contract)].length, "Wrapper Factory: Wrapper version doesn't exist");
 
-        return address(uint160(uint(hash)));
-    }
-
-    ////////////////////////
-    //Receive and Withdraw//
-    ////////////////////////
-
-    receive() external payable {}
-
-    function withdraw() external onlyOwner {
-        require(address(this).balance > 0, "Wrapper Factory: Nothing to withdraw");
-
-        (bool success, ) = (owner()).call{value: address(this).balance }("");
-        require(success, "Wrapper Factory: Transfer to the owner failed.");
+        return wrapperContracts[address(_contract)][_version];
     }
 
     ///////////////////////
     //Secondary Functions//
     ///////////////////////
 
-    function _getERC721WrapperBytecode(IERC721Metadata _contract) internal view returns (bytes memory) {
-        bytes memory bytecode = type(ERC721Wrapper).creationCode;
-
-        return abi.encodePacked(bytecode, abi.encode(_contract, address(this)));
-    }
-
-    function _getERC1155WrapperBytecode(IERC1155MetadataURI _contract) internal view returns (bytes memory) {
-        bytes memory bytecode = type(ERC1155Wrapper).creationCode;
-
-        return abi.encodePacked(bytecode, abi.encode(_contract, address(this)));
-    }
-
     function _getWrapPrice(address _contract) internal view returns (uint256) {
-        uint256 lengthOfWrapperContractsMapping = wrapperContracts[_contract].length;
-
-        uint256 fibBase = _fib(lengthOfWrapperContractsMapping + 1);
-
-        uint256 price = fibBase * 1e16 wei;
-
+        uint256 price = _fib(wrapperContracts[_contract].length + 2) * 1e16 wei;
         return price;
     }
 
@@ -125,5 +88,18 @@ contract WrapperFactory is Ownable, ReentrancyGuard {
             fi_1 = fi;
         }
         return fi_1;
+    }
+
+    ////////////////////////
+    //Receive and Withdraw//
+    ////////////////////////
+
+    receive() external payable {}
+
+    function withdraw() external onlyOwner {
+        require(address(this).balance > 0, "Wrapper Factory: Nothing to withdraw");
+
+        (bool success, ) = (owner()).call{value: address(this).balance }("");
+        require(success, "Wrapper Factory: Transfer to the owner failed.");
     }
 }
