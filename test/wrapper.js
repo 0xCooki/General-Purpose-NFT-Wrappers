@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 const { ethers } = require("hardhat");
 
-describe("Pixels On Chain Testing", function () {
+describe("NFT Wrapper Testing", function () {
 
     //////////////////////
     //Deploy Environment//
@@ -193,10 +193,30 @@ describe("Pixels On Chain Testing", function () {
 
             await expect(deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.02")})).to.rejectedWith("Wrapper Factory: Insufficient fee paid");
         });
-        
+        it("Unsuccessful retrieve of contract addresses if out of bounds", async function () {
+            const { owner, erc721Wrapper, erc1155Wrapper, deployedFactory, deployedSimpleERC721, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
 
-        //wrapper getter functions with incorrect version
-        //events
+            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.01")});
+            
+            await expect(deployedFactory.getERC721WrapperAddress(deployedSimpleERC721.address, 1)).to.rejectedWith("Wrapper Factory: Wrapper version doesn't exist");
+
+            await deployedFactory.CreateERC1155Wrapper(deployedSimpleERC1155.address, {value: ethers.utils.parseEther("0.01")});
+
+            await expect(deployedFactory.getERC1155WrapperAddress(deployedSimpleERC1155.address, 1)).to.rejectedWith("Wrapper Factory: Wrapper version doesn't exist");
+        });
+        it("Successfully emission of all events", async function () {
+            const { owner, addy0, erc721Wrapper, erc1155Wrapper, deployedFactory, deployedSimpleERC721, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
+
+            const newERC721WrapperAddress = "0x75537828f2ce51be7289709686A69CbFDbB714F1";
+            await expect(deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.01")})).to.emit(deployedFactory, "ERC721WrapperCreated").withArgs(deployedSimpleERC721.address, newERC721WrapperAddress, owner.address);
+            expect(await deployedFactory.getERC721WrapperAddress(deployedSimpleERC721.address, 0)).to.equal(newERC721WrapperAddress);
+
+            const newERC1155WrapperAddress = "0xE451980132E65465d0a498c53f0b5227326Dd73F";
+            await expect(deployedFactory.connect(addy0).CreateERC1155Wrapper(deployedSimpleERC1155.address, {value: ethers.utils.parseEther("0.01")})).to.emit(deployedFactory, "ERC1155WrapperCreated").withArgs(deployedSimpleERC1155.address, newERC1155WrapperAddress, addy0.address);
+            expect(await deployedFactory.getERC1155WrapperAddress(deployedSimpleERC1155.address, 0)).to.equal(newERC1155WrapperAddress);
+        });
+
+        //elaborate tests
     });
 
     //////////////////
@@ -523,6 +543,51 @@ describe("Pixels On Chain Testing", function () {
             //Wrapper displays the underlying art correctly
             expect(await newWrapperContract.tokenURI(0)).to.equal("0# Arte!");
         });
+        it("Successfully Wrap multiple ERC1155s using the batch safeTransfer functionality", async function () {
+            const { addy0, addy1, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
+
+            //Create Wrapper
+            await deployedFactory.CreateERC1155Wrapper(deployedSimpleERC1155.address, {value: ethers.utils.parseEther("0.01")});
+            const newdeployedaddress = await deployedFactory.getERC1155WrapperAddress(deployedSimpleERC1155.address, 0);
+            const newWrapperContract = await erc1155Wrapper.attach(newdeployedaddress);
+
+            //Mint a many of the same kind
+            await deployedSimpleERC1155.connect(addy0).mintMany([0], [10]);
+
+            //wrap via batch transfer
+            await deployedSimpleERC1155.connect(addy0)["safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)"](addy0.address, newWrapperContract.address, [0], [10], "0x");
+
+            //Wrapper should own 10 SMPL 0
+            expect(await deployedSimpleERC1155.balanceOf(newWrapperContract.address, 0)).to.equal(10);
+
+            //Owner of wrSMPL 0 should be the "owner"
+            expect(await newWrapperContract.ownerOf(0)).to.equal(addy0.address);
+
+            //Owner of wrSMPL 1 should be the "owner"
+            expect(await newWrapperContract.ownerOf(1)).to.equal(addy0.address);
+
+            //Wrapper displays the underlying art correctly
+            expect(await newWrapperContract.tokenURI(7)).to.equal("0# Arte!");
+
+            //Mint a many of different ids the same kind
+            await deployedSimpleERC1155.connect(addy1).mintMany([1,2,3], [10,20,50]);
+
+            //wrap via batch transfer
+            await deployedSimpleERC1155.connect(addy1)["safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)"](addy1.address, newWrapperContract.address, [1,2,3], [10,10,10], "0x");
+
+            //Wrapper should own 10 SMPL 3
+            expect(await deployedSimpleERC1155.balanceOf(newWrapperContract.address, 3)).to.equal(10);
+
+            //Owner of wrSMPL 0 should be the "owner"
+            expect(await newWrapperContract.ownerOf(11)).to.equal(addy1.address);
+
+            //Owner of wrSMPL 1 should be the "owner"
+            expect(await newWrapperContract.ownerOf(39)).to.equal(addy1.address);
+
+            //Wrapper displays the underlying art correctly
+            expect(await newWrapperContract.tokenURI(27)).to.equal("2# Arte!");
+
+        });
         it("Successfully Unwrap an ERC1155 using the wrap function", async function () {
             const { owner, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
 
@@ -683,7 +748,32 @@ describe("Pixels On Chain Testing", function () {
             //Unwrapped event
             await expect(newWrapperContract.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, newWrapperContract.address, 0)).to.emit(newWrapperContract, "Unwrapped").withArgs(1, addy0.address);
         });
-        
-        //elaborate test
+
+        //elaborate tests
+    });
+
+    ///////////////////
+    //ERC1155 Wrapper//
+    ///////////////////
+
+    describe("Testing the ERC721 Vault", () => {
+        it("Immutables are set correctly", async function () {
+            const { owner, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
+
+            //Create Wrapper
+            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.01")});
+            const newdeployedaddress = await deployedFactory.getERC721WrapperAddress(deployedSimpleERC721.address, 0);
+            const newWrapperContract = await erc721Wrapper.attach(newdeployedaddress);
+
+            const baseContract = await newWrapperContract.baseContract();
+
+            const factoryContract = await newWrapperContract.wrapperFactory();
+
+            expect(baseContract).to.equal(deployedSimpleERC721.address);
+
+            expect(factoryContract).to.equal(deployedFactory.address);
+        });
+
+        //Other tests
     });
 });

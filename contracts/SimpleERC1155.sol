@@ -16,16 +16,11 @@ contract SimpleERC1155 is ERC1155, ReentrancyGuard {
         _mint(msg.sender, _id, 1, "0x");
     }
 
-    function mintMany(uint256 _id, uint256 _amount) external nonReentrant {
-        require(_amount > 0, "You must mint something silly!");
-
-        uint256[] memory ids;
-        uint256[] memory amounts;
-
-        ids[0] = _id;
-        amounts[0] = _amount;
-
-        _mintBatch(msg.sender, ids, amounts, "0x");
+    function mintMany(uint256[] memory _ids, uint256[] memory _amounts) external nonReentrant {
+        require(_amounts.length > 0, "You must mint something silly!");
+        require(_ids.length == _amounts.length, "Unequal Length of arrays");
+        
+        _mintBatch(msg.sender, _ids, _amounts, "0x");
     }
 
     function uri(uint256 _tokenId) public pure override returns (string memory) {

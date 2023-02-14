@@ -8,12 +8,16 @@ import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/I
 import {IERC1155MetadataURI} from "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
 import {ERC721Wrapper} from "./ERC721Wrapper.sol";
 import {ERC1155Wrapper} from "./ERC1155Wrapper.sol";
+import {ERC721Bundle} from "./ERC721Bundle.sol";
 
 contract WrapperFactory is Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
     //baseNFT => set of wrapper addresses
     mapping(address => address[]) public wrapperContracts;
+
+    //vault addresses, un-ordered?
+    address[] public vaultContracts;
 
     //////////
     //Events//
@@ -54,6 +58,10 @@ contract WrapperFactory is Ownable, ReentrancyGuard {
 
         emit ERC1155WrapperCreated(address(_contract), newContract, msg.sender);
     }
+
+    ////////////////////
+    //Getter Functions//
+    ////////////////////
 
     function getERC721WrapperAddress(IERC721Metadata _contract, uint256 _version) external view returns (address) {
         require(_version < wrapperContracts[address(_contract)].length, "Wrapper Factory: Wrapper version doesn't exist");

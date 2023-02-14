@@ -19,8 +19,6 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     
     address public immutable wrapperFactory;
 
-    uint256 public nonce;
-
     //////////
     //Events//
     //////////
@@ -71,7 +69,6 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
 
         if (_ownerOf(_tokenId) == address(0)) {
             _safeMint(_reciever, _tokenId);
-            nonce++;
         } else {
             this.safeTransferFrom(address(this), _reciever, _tokenId);
         }
