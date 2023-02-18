@@ -24,7 +24,7 @@ describe("NFT Wrapper Testing", function () {
         const erc721Wrapper = await ethers.getContractFactory("ERC721Wrapper");
 
         //ERC1155 Wrapper Contract
-        const erc1155Wrapper = await ethers.getContractFactory("ERC721Wrapper");
+        const erc1155Wrapper = await ethers.getContractFactory("ERC1155Wrapper");
 
         //Deploy Factory
         const factory = await ethers.getContractFactory("WrapperFactory");
@@ -750,30 +750,5 @@ describe("NFT Wrapper Testing", function () {
         });
 
         //elaborate tests
-    });
-
-    ///////////////////
-    //ERC1155 Wrapper//
-    ///////////////////
-
-    describe("Testing the ERC721 Vault", () => {
-        it("Immutables are set correctly", async function () {
-            const { owner, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
-
-            //Create Wrapper
-            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.01")});
-            const newdeployedaddress = await deployedFactory.getERC721WrapperAddress(deployedSimpleERC721.address, 0);
-            const newWrapperContract = await erc721Wrapper.attach(newdeployedaddress);
-
-            const baseContract = await newWrapperContract.baseContract();
-
-            const factoryContract = await newWrapperContract.wrapperFactory();
-
-            expect(baseContract).to.equal(deployedSimpleERC721.address);
-
-            expect(factoryContract).to.equal(deployedFactory.address);
-        });
-
-        //Other tests
     });
 });
