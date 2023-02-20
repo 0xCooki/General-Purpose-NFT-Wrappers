@@ -101,7 +101,7 @@ contract WrapperFactory is Ownable, ReentrancyGuard {
     receive() external payable {}
 
     function withdraw() external onlyOwner {
-        require(address(this).balance > 0, "Wrapper Factory: Nothing to withdraw");
+        require(address(this).balance > 0, "Wrapper Factory: Nothing to withdraw.");
 
         (bool success, ) = (owner()).call{value: address(this).balance }("");
         require(success, "Wrapper Factory: Transfer to the owner failed.");
