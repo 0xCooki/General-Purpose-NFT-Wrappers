@@ -215,8 +215,6 @@ describe("NFT Wrapper Testing", function () {
             await expect(deployedFactory.connect(addy0).CreateERC1155Wrapper(deployedSimpleERC1155.address, {value: ethers.utils.parseEther("0.01")})).to.emit(deployedFactory, "ERC1155WrapperCreated").withArgs(deployedSimpleERC1155.address, newERC1155WrapperAddress, addy0.address);
             expect(await deployedFactory.getERC1155WrapperAddress(deployedSimpleERC1155.address, 0)).to.equal(newERC1155WrapperAddress);
         });
-
-        //elaborate tests
     });
 
     //////////////////
@@ -396,13 +394,16 @@ describe("NFT Wrapper Testing", function () {
             await deployedSimpleERC721.mintOne();
 
             //Grant Approval
-            await deployedSimpleERC721.setApprovalForAll(newWrapperContract.address, true);
+            await deployedSimpleERC721.approve(newWrapperContract.address, 0);
             
             //Wrap
             await newWrapperContract.wrap(0);
 
             //Unwrap
             await newWrapperContract.unwrap(0);
+
+            //Grant approval again given that this form of approval resets after transfer
+            await deployedSimpleERC721.approve(newWrapperContract.address, 0);
 
             //Wrap again
             await newWrapperContract.wrap(0);
@@ -456,8 +457,70 @@ describe("NFT Wrapper Testing", function () {
             //unwrapped
             await expect(newWrapperContract.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, newWrapperContract.address, 0)).to.emit(newWrapperContract, "Unwrapped").withArgs(0, addy0.address);
         });
+        it("Successfully Wrap an ERC721, send it to another address, and unwrap to new owner", async function () {
+            const { owner, addy0, addy1, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
 
-        //elaborate tests - wrap and unwrap and moving it all about
+            //Create Wrapper
+            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.01")});
+            const newdeployedaddress = await deployedFactory.getERC721WrapperAddress(deployedSimpleERC721.address, 0);
+            const newWrapperContract = await erc721Wrapper.attach(newdeployedaddress);
+
+            //Mint a base NFT
+            await deployedSimpleERC721.connect(addy0).mintOne();
+
+            //Grant Approval
+            await deployedSimpleERC721.connect(addy0).approve(newWrapperContract.address, 0);
+                        
+            //Wrap
+            await newWrapperContract.connect(addy0).wrap(0);
+
+            //Send wrapper to new address
+            await newWrapperContract.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, addy1.address, 0);
+
+            //Unwrap
+            await newWrapperContract.connect(addy1).unwrap(0);
+
+            //Owner of SMPL 0 should be addy1
+            expect(await deployedSimpleERC721.ownerOf(0)).to.equal(addy1.address);
+
+            //Owner of wrSMPL 0 should be the wrapper
+            expect(await newWrapperContract.ownerOf(0)).to.equal(newWrapperContract.address);
+
+            //Wrapper displays the underlying art correctly
+            expect(await newWrapperContract.tokenURI(0)).to.equal("0# Art!");
+        });
+        it("Successfully iteration of wrapper token Ids", async function () {
+            const { owner, addy0, addy1, erc721Wrapper, deployedFactory, deployedSimpleERC721 } = await loadFixture(deployEnvironment);
+
+            //Create Wrapper
+            await deployedFactory.CreateERC721Wrapper(deployedSimpleERC721.address, {value: ethers.utils.parseEther("0.01")});
+            const newdeployedaddress = await deployedFactory.getERC721WrapperAddress(deployedSimpleERC721.address, 0);
+            const newWrapperContract = await erc721Wrapper.attach(newdeployedaddress);
+
+            //Mint a base NFT
+            await deployedSimpleERC721.connect(addy0).mintMany(10);
+
+            //Grant Approval
+            await deployedSimpleERC721.connect(addy0).approve(newWrapperContract.address, 9);
+                        
+            //Wrap
+            await newWrapperContract.connect(addy0).wrap(9);
+
+            //Send wrapper to new address
+            await newWrapperContract.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, addy1.address, 9);
+
+            //Unwrap
+            await newWrapperContract.connect(addy1).unwrap(9);
+
+            //Owner of SMPL 0 should be addy1
+            expect(await deployedSimpleERC721.ownerOf(9)).to.equal(addy1.address);
+
+            //Owner of wrSMPL 0 should be the wrapper
+            expect(await newWrapperContract.ownerOf(9)).to.equal(newWrapperContract.address);
+
+            //Wrapper displays the underlying art correctly
+            expect(await newWrapperContract.tokenURI(9)).to.equal("9# Art!");
+        });
     });
 
     ///////////////////
@@ -543,6 +606,30 @@ describe("NFT Wrapper Testing", function () {
             //Wrapper displays the underlying art correctly
             expect(await newWrapperContract.tokenURI(0)).to.equal("0# Arte!");
         });
+        it("Successfully Wrap multiple ERC1155s using the safeTransfer functionality", async function () {
+            const { addy0, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
+
+            //Create Wrapper
+            await deployedFactory.CreateERC1155Wrapper(deployedSimpleERC1155.address, {value: ethers.utils.parseEther("0.01")});
+            const newdeployedaddress = await deployedFactory.getERC1155WrapperAddress(deployedSimpleERC1155.address, 0);
+            const newWrapperContract = await erc1155Wrapper.attach(newdeployedaddress);
+
+            //Mint a base NFT
+            await deployedSimpleERC1155.connect(addy0).mintMany([1], [10]);
+
+            //wrap
+            await deployedSimpleERC1155.connect(addy0)["safeTransferFrom(address,address,uint256,uint256,bytes)"](addy0.address, newWrapperContract.address, 1, 10, "0x");
+
+            //Wrapper should own 10 SMPL 0
+            expect(await deployedSimpleERC1155.balanceOf(newWrapperContract.address, 1)).to.equal(10);
+
+            //Owner of wrSMPL 0 through 9 should be the "owner"
+            expect(await newWrapperContract.ownerOf(0)).to.equal(addy0.address);
+            expect(await newWrapperContract.ownerOf(9)).to.equal(addy0.address);
+
+            //Wrapper displays the underlying art correctly
+            expect(await newWrapperContract.tokenURI(9)).to.equal("1# Arte!");
+        });
         it("Successfully Wrap multiple ERC1155s using the batch safeTransfer functionality", async function () {
             const { addy0, addy1, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
 
@@ -586,7 +673,6 @@ describe("NFT Wrapper Testing", function () {
 
             //Wrapper displays the underlying art correctly
             expect(await newWrapperContract.tokenURI(27)).to.equal("2# Arte!");
-
         });
         it("Successfully Unwrap an ERC1155 using the wrap function", async function () {
             const { owner, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
@@ -661,6 +747,20 @@ describe("NFT Wrapper Testing", function () {
             //attempt and fail to wrap
             await expect(deployedSecondSimpleERC1155.connect(addy0)["safeTransferFrom(address,address,uint256,uint256,bytes)"](addy0.address, newWrapperContract.address, 0, 1, "0x")).to.rejectedWith("ERC1155Wrapper: may only transfer base NFT.");
         });
+        it("Unsuccessfully attempt to send an alternative erc721 to the wrapper contract", async function () {
+            const { addy0, erc1155Wrapper, deployedFactory, deployedSimpleERC721, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
+
+            //Create Wrapper
+            await deployedFactory.CreateERC1155Wrapper(deployedSimpleERC1155.address, {value: ethers.utils.parseEther("0.01")});
+            const newdeployedaddress = await deployedFactory.getERC1155WrapperAddress(deployedSimpleERC1155.address, 0);
+            const newWrapperContract = await erc1155Wrapper.attach(newdeployedaddress);
+
+            //Mint a 721
+            await deployedSimpleERC721.connect(addy0).mintOne();
+
+            //attempt and fail to wrap
+            await expect(deployedSimpleERC721.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, newWrapperContract.address, 0)).to.rejectedWith("ERC1155Wrapper: may only transfer wrapped NFT.");
+        });
         it("Successfully relayed ETH sent to it to the Factory", async function () {
             const { addy0, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
 
@@ -705,7 +805,7 @@ describe("NFT Wrapper Testing", function () {
             //Owner of wrSMPL 0 should be the owner
             expect(await newWrapperContract.ownerOf(0)).to.equal(owner.address);
         });
-        it("Successfully Re-wrap an ERC721 using the safeTransfer functionality", async function () {
+        it("Successfully Re-wrap an ERC1155 using the safeTransfer functionality", async function () {
             const { addy0, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
 
             //Create Wrapper
@@ -731,6 +831,54 @@ describe("NFT Wrapper Testing", function () {
             //Owner of wrSMPL 0 should be the owner
             expect(await newWrapperContract.ownerOf(0)).to.equal(addy0.address);
         });
+        it("Successfully Re-use of formerly unwrapped NFT", async function () {
+            const { addy0, addy1, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
+
+            //Create Wrapper
+            await deployedFactory.CreateERC1155Wrapper(deployedSimpleERC1155.address, {value: ethers.utils.parseEther("0.01")});
+            const newdeployedaddress = await deployedFactory.getERC1155WrapperAddress(deployedSimpleERC1155.address, 0);
+            const newWrapperContract = await erc1155Wrapper.attach(newdeployedaddress);
+
+            //Mint a lot of base NFTs for addy 0
+            await deployedSimpleERC1155.connect(addy0).mintMany([1], [10]);
+
+            //Safe Transfer base token to wrapper
+            await deployedSimpleERC1155.connect(addy0)["safeTransferFrom(address,address,uint256,uint256,bytes)"](addy0.address, newWrapperContract.address, 1, 10, "0x");
+
+            //Then safeTransfer three back
+            await newWrapperContract.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, newWrapperContract.address, 0);
+            await newWrapperContract.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, newWrapperContract.address, 8);
+            await newWrapperContract.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, newWrapperContract.address, 9);
+
+            //Owner of wrSMPL 0, 8, and 9 should be the wrapper contract
+            expect(await newWrapperContract.ownerOf(0)).to.equal(newWrapperContract.address);
+            expect(await newWrapperContract.ownerOf(8)).to.equal(newWrapperContract.address);
+            expect(await newWrapperContract.ownerOf(9)).to.equal(newWrapperContract.address);
+
+            //Mint two base NFT for addy 1
+            await deployedSimpleERC1155.connect(addy1).mintMany([1], [2]);
+
+            //Safe Transfer base token to wrapper again
+            await deployedSimpleERC1155.connect(addy1)["safeTransferFrom(address,address,uint256,uint256,bytes)"](addy1.address, newWrapperContract.address, 1, 1, "0x");
+
+            //Wrapper should own 8 1155 (id = 1) tokens
+            expect(await deployedSimpleERC1155.balanceOf(newWrapperContract.address, 1)).to.equal(8);
+
+            //And addy1 should own the 0th wrapper nft
+            expect(await newWrapperContract.ownerOf(0)).to.equal(addy1.address);
+
+            //Grant Approval
+            await deployedSimpleERC1155.connect(addy1).setApprovalForAll(newWrapperContract.address, true);
+
+            //Wrap again
+            await newWrapperContract.connect(addy1).wrap(1);
+
+            //Wrapper should own 9 1155 (id = 1) tokens
+            expect(await deployedSimpleERC1155.balanceOf(newWrapperContract.address, 1)).to.equal(9);
+
+            //And addy1 should own the 9th wrapper nft
+            expect(await newWrapperContract.ownerOf(9)).to.equal(addy1.address);
+        });
         it("Successfull emission of all events", async function () {
             const { addy0, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
 
@@ -748,7 +896,34 @@ describe("NFT Wrapper Testing", function () {
             //Unwrapped event
             await expect(newWrapperContract.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, newWrapperContract.address, 0)).to.emit(newWrapperContract, "Unwrapped").withArgs(1, addy0.address);
         });
+        it("Successfully Wrap an ERC1155, send it to another address, and unwrap to new owner", async function () {
+            const { owner, addy0, addy1, erc1155Wrapper, deployedFactory, deployedSimpleERC1155 } = await loadFixture(deployEnvironment);
 
-        //elaborate tests
+            //Create Wrapper
+            await deployedFactory.CreateERC1155Wrapper(deployedSimpleERC1155.address, {value: ethers.utils.parseEther("0.01")});
+            const newdeployedaddress = await deployedFactory.getERC1155WrapperAddress(deployedSimpleERC1155.address, 0);
+            const newWrapperContract = await erc1155Wrapper.attach(newdeployedaddress);
+
+            //Mint a base NFT
+            await deployedSimpleERC1155.connect(addy0).mintOne(12);
+
+            //Grant Approval
+            await deployedSimpleERC1155.connect(addy0).setApprovalForAll(newWrapperContract.address, true);
+            
+            //Wrap
+            await newWrapperContract.connect(addy0).wrap(12);
+
+            //Transfer
+            await newWrapperContract.connect(addy0)["safeTransferFrom(address,address,uint256)"](addy0.address, addy1.address, 0);
+
+            //Unwrap
+            await newWrapperContract.connect(addy1).unwrap(0);
+
+            //Owner of SMPL 0 should be addy1
+            expect(await deployedSimpleERC1155.balanceOf(addy1.address, 12)).to.equal(1);
+
+            //Owner of wrSMPL 0 should be the wrapper
+            expect(await newWrapperContract.ownerOf(0)).to.equal(newWrapperContract.address);
+        });
     });
 });

@@ -27,7 +27,7 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
     //721 id to erc1155 id
     mapping (uint256 => uint256) public ERC721IdToERC1155Id;
     
-    //1155 id to array of 721 ids
+    //1155 id to array of 721 ids held by the wrapper contract
     mapping (uint256 => uint256[]) public spareWrapperIdsForERC1155Id;
 
     //////////
@@ -136,12 +136,12 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
 
         require(
             receivedCollection.ownerOf(tokenId) == address(this),
-            "ERC721Wrapper: transfer to Wrapper failed."
+            "ERC1155Wrapper: transfer to Wrapper failed."
         );
 
         require(
             receivedCollection == IERC721Metadata(address(this)),
-            "ERC721Wrapper: may only transfer wrapped NFT."
+            "ERC1155Wrapper: may only transfer wrapped NFT."
         );
 
         _unwrap(from, tokenId);
