@@ -11,6 +11,17 @@ import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Re
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IERC1155MetadataURI} from "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
 
+/// @title  ERC1155 Wrapper
+/// @author Cooki.eth
+/// @notice This contract is a generalised ERC1155 wrapper that has been generated using the Wrapper Factory.
+///         Users can send the NFT that this wrapper wraps to the contract using either the wrap function,
+///         or via a safeTransfer. Equally, unwrapping is facilitated by using the unwrap function or 
+///         safeTransfering the wrapped NFT back to this contract. While this wrapper wraps ERC1155 tokens it
+///         is itself an ERC721 contract, which is intended to only wrap NFTs. Those looking to wrap fungible
+///         tokens will unfortunately have to go elsewhere. This wrapper does not maintain consistency of token
+///         ids between the base and wrapped NFT. Meaning that the token id of a wrapped NFT does not correspond
+///         to the token id of the NFT that it is wrapping. Finally, any ETH sent to this contract is automatically
+///         relayed to the Wrapper Factory, and retrievable only by the Wrapper Factory owner.
 contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Receiver {
     using SafeMath for uint256;
 
@@ -18,25 +29,31 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
     //Variables//
     /////////////
 
+    /// @notice The address of the base NFT that this wrapper wraps.
     IERC1155MetadataURI public immutable baseContract;
     
+    /// @notice The wrapper factory address.
     address public immutable wrapperFactory;
 
+    /// @notice The number of wrappers created using this contract.
     uint256 public nonce;
 
-    //721 id to erc1155 id
+    /// @notice A mapping from the wrapper token id of this contract to the token id of the underlying wrapped
+    ///         NFT.
     mapping (uint256 => uint256) public ERC721IdToERC1155Id;
     
-    //1155 id to array of 721 ids held by the wrapper contract
+    /// @notice A mapping from the token id of the ERC1155 base NFT to a set of wrapper token ids held by this
+    ///         contract.
     mapping (uint256 => uint256[]) public spareWrapperIdsForERC1155Id;
 
     //////////
     //Events//
     //////////
 
-    //these ids are erc1155 ids
+    /// @notice An event detailing the ERC1155 token id and address wrapping an NFT using this contract.
     event Wrapped(uint256 indexed _tokenId, address indexed _wrapper);
-
+    
+    /// @notice An event detailing the ERC1155 token id and address unwrapping an NFT using this contract.
     event Unwrapped(uint256 indexed _tokenId, address indexed _unwrapper);
 
     ///////////////
@@ -56,6 +73,8 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
     //Primary Functions//
     /////////////////////
 
+    /// @notice This function allows users to wrap an NFT using this contract.
+    /// @param _erc1155Id The ERC1155 token id of the NFT to be wrapped.
     function wrap(uint256 _erc1155Id) external {
         require(
             baseContract.isApprovedForAll(_msgSender(), address(this)),
@@ -65,6 +84,8 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
         baseContract.safeTransferFrom(_msgSender(), address(this), _erc1155Id, 1, "0x");
     }
 
+    /// @notice This function allows users to unwrap an NFT using this contract.
+    /// @param _erc721Id The ERC721 token id of the NFT to be unwrapped.
     function unwrap(uint256 _erc721Id) external {
         require(_active(_erc721Id), "ERC1155Wrapper: The NFT has not been wrapped yet.");
         
@@ -207,6 +228,8 @@ contract ERC1155Wrapper is ERC721, ReentrancyGuard, IERC1155Receiver, IERC721Rec
     //ERC721 Overrides//
     ////////////////////
 
+    /// @notice This function allows the base NFT metadata to be retrievable by the wrapper NFT contract.
+    /// @param _erc721Id The ERC721 token id of the wrapper NFT.
     function tokenURI(uint256 _erc721Id) public view override returns (string memory) {
         return baseContract.uri(ERC721IdToERC1155Id[_erc721Id]);
     }

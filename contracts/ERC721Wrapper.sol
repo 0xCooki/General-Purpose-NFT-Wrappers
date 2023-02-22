@@ -8,6 +8,15 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IERC721Metadata} from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
+/// @title  ERC721 Wrapper
+/// @author Cooki.eth
+/// @notice This contract is a generalised ERC721 wrapper that has been generated using the Wrapper Factory.
+///         Users can send the NFT that this wrapper wraps to the contract using either the wrap function,
+///         or via a safeTransfer. Equally, unwrapping is facilitated by using the unwrap function or 
+///         safeTransfering the wrapped NFT back to this contract. This wrapper maintains consistency of token
+///         ids between the base and wrapped NFT. Meaning that the token id of a wrapped NFT always corresponds
+///         to the token id of the NFT that it is wrapping. Finally, any ETH sent to this contract is automatically
+///         relayed to the Wrapper Factory, and retrievable only by the Wrapper Factory owner.
 contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     using SafeMath for uint256;
 
@@ -15,16 +24,20 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     //Immutables//
     //////////////
 
+    /// @notice The address of the base NFT that this wrapper wraps.
     IERC721Metadata public immutable baseContract;
     
+    /// @notice The wrapper factory address.
     address public immutable wrapperFactory;
 
     //////////
     //Events//
     //////////
 
+    /// @notice An event detailing the token id and address wrapping an NFT using this contract.
     event Wrapped(uint256 indexed _tokenId, address indexed _wrapper);
 
+    /// @notice An event detailing the token id and address unwrapping an NFT using this contract.
     event Unwrapped(uint256 indexed _tokenId, address indexed _unwrapper);
 
     ///////////////
@@ -44,6 +57,8 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     //Primary Functions//
     /////////////////////
 
+    /// @notice This function allows users to wrap an NFT using this contract.
+    /// @param _tokenId The token id of the NFT to be wrapped.
     function wrap(uint256 _tokenId) external {
         require(
             baseContract.getApproved(_tokenId) == address(this) || 
@@ -54,6 +69,8 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
         baseContract.safeTransferFrom(_msgSender(), address(this), _tokenId);
     }
 
+    /// @notice This function allows users to unwrap an NFT using this contract.
+    /// @param _tokenId The token id of the NFT to be unwrapped.
     function unwrap(uint256 _tokenId) external {
         require(_active(_tokenId), "ERC721Wrapper: The NFT has not been wrapped yet.");
         
@@ -131,6 +148,8 @@ contract ERC721Wrapper is ERC721, IERC721Receiver, ReentrancyGuard {
     //ERC721 Overrides//
     ////////////////////
 
+    /// @notice This function allows the base NFT metadata to be retrievable by the wrapper NFT contract.
+    /// @param _tokenId The token id of the wrapped NFT.
     function tokenURI(uint256 _tokenId) public view override returns (string memory) {
         return baseContract.tokenURI(_tokenId);
     }
